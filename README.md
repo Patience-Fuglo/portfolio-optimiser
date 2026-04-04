@@ -64,7 +64,7 @@ outputs/                 # Generated visualizations
 
 ```bash
 # Clone the repository
-git clone https://github.com/patiencefuglo/portfolio-optimiser.git
+git clone https://github.com/Patience-Fuglo/portfolio-optimiser.git
 cd portfolio-optimiser
 
 # Create virtual environment (recommended)
@@ -266,7 +266,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Patience Fuglo**
 
-- GitHub: [@patiencefuglo](https://github.com/patiencefuglo)
+- GitHub: [@Patience-Fuglo](https://github.com/Patience-Fuglo)
 - LinkedIn: [Patience Fuglo](https://linkedin.com/in/patiencefuglo)
 
 ---

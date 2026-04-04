@@ -54,10 +54,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/patiencefuglo/portfolio-optimiser"
-Documentation = "https://github.com/patiencefuglo/portfolio-optimiser#readme"
-Repository = "https://github.com/patiencefuglo/portfolio-optimiser.git"
-Issues = "https://github.com/patiencefuglo/portfolio-optimiser/issues"
+Homepage = "https://github.com/Patience-Fuglo/portfolio-optimiser"
+Documentation = "https://github.com/Patience-Fuglo/portfolio-optimiser#readme"
+Repository = "https://github.com/Patience-Fuglo/portfolio-optimiser.git"
+Issues = "https://github.com/Patience-Fuglo/portfolio-optimiser/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
