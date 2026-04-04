@@ -267,7 +267,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Patience Fuglo**
 
 - GitHub: [@Patience-Fuglo](https://github.com/Patience-Fuglo)
-- LinkedIn: [Patience Fuglo](https://linkedin.com/in/patiencefuglo)
+- LinkedIn: [Patience Fuglo](https://www.linkedin.com/in/patience-fuglo/)
 
 ---
 
