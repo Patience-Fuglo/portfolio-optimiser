@@ -2,8 +2,8 @@
 Portfolio Optimiser
 ===================
 
-A professional-grade portfolio optimization library implementing modern portfolio theory
-with practical constraints, transaction costs, backtesting, and risk attribution.
+A portfolio optimization library implementing Modern Portfolio Theory
+with constraints, transaction costs, backtesting, and risk attribution.
 
 Modules
 -------

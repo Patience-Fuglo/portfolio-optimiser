@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A professional-grade portfolio optimization system built in Python, implementing modern portfolio theory with practical constraints, transaction costs, backtesting, and risk attribution.
+A portfolio optimization system built in Python, implementing Modern Portfolio Theory with constraints, transaction costs, backtesting, and risk attribution.
 
 <p align="center">
   <img src="outputs/frontier_with_strategies.png" alt="Efficient Frontier with Strategies" width="600">
@@ -12,11 +12,11 @@ A professional-grade portfolio optimization system built in Python, implementing
 
 ## 🎯 Overview
 
-This project demonstrates quantitative portfolio management techniques used at hedge funds and asset managers:
+This project implements core quantitative portfolio management techniques:
 
 - **Efficient Frontier Construction** — Mean-variance optimization using SLSQP
 - **Multiple Portfolio Strategies** — Max Sharpe, Min Variance, Equal Weight, Risk Parity
-- **Real-World Constraints** — Position limits, sector exposure caps
+- **Portfolio Constraints** — Position limits, sector exposure caps
 - **Transaction Cost Modeling** — Commission, spread costs, minimum trade sizes
 - **Walk-Forward Backtesting** — Monthly rebalancing with look-ahead bias prevention
 - **Risk Attribution** — Decompose portfolio risk by asset, measure diversification
@@ -225,9 +225,7 @@ DR = Σ(w_i × σ_i) / σ_portfolio
 
 A ratio > 1 indicates diversification benefit from imperfect correlations.
 
-## 🎓 Skills Demonstrated
-
-This project demonstrates proficiency in:
+## 🛠️ Technologies Used
 
 | Category | Technologies/Concepts |
 |----------|----------------------|
@@ -272,5 +270,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <p align="center">
-  <i>Built as a quantitative finance portfolio project demonstrating end-to-end portfolio optimization infrastructure.</i>
+  ⭐ Star this repo if you find it useful!
 </p>
