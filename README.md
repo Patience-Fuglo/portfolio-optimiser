@@ -88,16 +88,54 @@ This will:
 4. Generate risk attribution analysis
 5. Save all visualizations to `outputs/`
 
-### Run Individual Tests
+### Run the Demo Notebook
 
 ```bash
-python tests/test_optimizer.py      # Efficient frontier
-python tests/test_constraints.py    # Constrained vs unconstrained
-python tests/test_strategies.py     # Strategy comparison
-python tests/test_costs.py          # Transaction cost model
-python tests/test_backtester.py     # Backtest with costs
-python tests/test_report.py         # Risk attribution
+# Launch Jupyter and open the interactive demo
+jupyter notebook examples/demo.ipynb
 ```
+
+The notebook provides a step-by-step walkthrough of all features with explanations.
+
+## 🧪 Testing
+
+### Run All Tests
+
+```bash
+# Run the full test suite
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run with coverage report
+pytest --cov=portfolio_optimiser --cov-report=term-missing
+```
+
+### Run Specific Tests
+
+```bash
+# Run tests for a specific module
+pytest tests/test_optimizer.py
+pytest tests/test_backtester.py
+
+# Run a specific test function
+pytest tests/test_optimizer.py::test_efficient_frontier
+
+# Run tests matching a pattern
+pytest -k "sharpe"
+```
+
+### Test Categories
+
+| Test File | Coverage |
+|-----------|----------|
+| `test_optimizer.py` | Efficient frontier, optimization algorithms |
+| `test_constraints.py` | Weight bounds, sector limits |
+| `test_costs.py` | Transaction cost calculations |
+| `test_backtester.py` | Walk-forward backtesting engine |
+| `test_report.py` | Risk attribution, visualizations |
+| `test_strategies.py` | Strategy comparison |
 ## 📊 Sample Visualizations
 
 <table>
