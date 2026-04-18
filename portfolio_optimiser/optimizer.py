@@ -549,7 +549,15 @@ def black_litterman(
 
 
 def compare_strategies(expected_returns, cov_matrix, stock_names, risk_free_rate=0.02):
+    from portfolio_optimiser.hrp import hrp_weights
+
     n_assets = len(expected_returns)
+
+    # Derive correlation matrix for HRP
+    vol = np.sqrt(np.maximum(np.diag(cov_matrix), 1e-12))
+    corr = cov_matrix / np.outer(vol, vol)
+    np.clip(corr, -1.0, 1.0, out=corr)
+    np.fill_diagonal(corr, 1.0)
 
     strategies = {
         "Max Sharpe": max_sharpe_ratio(expected_returns, cov_matrix, risk_free_rate),
@@ -557,6 +565,7 @@ def compare_strategies(expected_returns, cov_matrix, stock_names, risk_free_rate
         "Equal Weight": equal_weight(n_assets),
         "Risk Parity": risk_parity(cov_matrix),
         "Max Diversification": maximum_diversification(cov_matrix),
+        "HRP": hrp_weights(cov_matrix, corr),
     }
 
     print("\n=== STRATEGY COMPARISON ===\n")

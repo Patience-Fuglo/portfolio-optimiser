@@ -183,6 +183,87 @@ def find_lowest_correlation_pair(returns: pd.DataFrame) -> tuple[tuple[str, str]
     return lowest_pair, lowest_value
 
 
+def fetch_prices(
+    tickers: list[str],
+    start: str,
+    end: str | None = None,
+) -> pd.DataFrame:
+    """
+    Download daily closing prices from Yahoo Finance via yfinance.
+
+    Args:
+        tickers: List of ticker symbols, e.g. ["AAPL", "MSFT", "GOOGL"].
+        start: Start date string, e.g. "2020-01-01".
+        end: End date string (defaults to today).
+
+    Returns:
+        DataFrame of adjusted closing prices indexed by Date.
+
+    Example:
+        >>> prices = fetch_prices(["AAPL", "MSFT"], start="2022-01-01")
+    """
+    try:
+        import yfinance as yf
+    except ImportError:
+        raise ImportError("yfinance is required: pip install yfinance")
+
+    raw = yf.download(tickers, start=start, end=end, auto_adjust=True, progress=False)
+
+    if isinstance(raw.columns, pd.MultiIndex):
+        prices = raw["Close"]
+    else:
+        prices = raw[["Close"]] if len(tickers) == 1 else raw
+
+    prices.index.name = "Date"
+    return prices.sort_index().dropna(how="all")
+
+
+def fetch_ff3_factors(
+    start: str,
+    end: str | None = None,
+) -> pd.DataFrame:
+    """
+    Download Fama-French 3-Factor daily data from Ken French's data library.
+
+    Returns daily factor returns: Mkt-RF, SMB, HML, RF (as decimals).
+
+    Args:
+        start: Start date string, e.g. "2020-01-01".
+        end: End date string (defaults to today).
+
+    Returns:
+        DataFrame with columns ["Mkt-RF", "SMB", "HML", "RF"] indexed by Date.
+
+    Raises:
+        ImportError: If pandas-datareader is not installed.
+        RuntimeError: If the download fails.
+
+    Example:
+        >>> factors = fetch_ff3_factors(start="2022-01-01")
+        >>> factors.head()
+    """
+    try:
+        import pandas_datareader.data as web
+    except ImportError:
+        raise ImportError("pandas-datareader is required: pip install pandas-datareader")
+
+    try:
+        raw = web.DataReader(
+            "F-F_Research_Data_Factors_daily",
+            "famafrench",
+            start=start,
+            end=end,
+        )[0]
+        factors = raw / 100.0  # convert % to decimal
+        factors.index = pd.to_datetime(factors.index)
+        factors.index.name = "Date"
+        return factors.loc[start:end] if end else factors.loc[start:]
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to download FF3 factors from Ken French library: {exc}"
+        ) from exc
+
+
 if __name__ == "__main__":
     filepath = "data/sample_price_data.csv"
 

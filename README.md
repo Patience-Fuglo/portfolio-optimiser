@@ -1,9 +1,10 @@
 # Portfolio Optimiser
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-2.0.0-green.svg)]()
+[![Version](https://img.shields.io/badge/version-3.0.0-green.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Version](https://img.shields.io/badge/version-3.0.0-green.svg)]()
 [![Research Report](https://img.shields.io/badge/Research%20Report-Live-brightgreen.svg)](https://patience-fuglo.github.io/portfolio-optimiser/)
 
 **[View Full Research Report](https://patience-fuglo.github.io/portfolio-optimiser/)**
@@ -23,8 +24,11 @@ This project implements the core quantitative portfolio management techniques us
 | Feature | Description |
 |---|---|
 | **Efficient Frontier** | Mean-variance optimization via SLSQP |
-| **5 Portfolio Strategies** | Max Sharpe, Min Variance, Equal Weight, Risk Parity, Max Diversification |
+| **6 Portfolio Strategies** | Max Sharpe, Min Variance, Equal Weight, Risk Parity, Max Diversification, HRP |
+| **Hierarchical Risk Parity** | López de Prado (2016) — clustering-based, no matrix inversion |
 | **Black-Litterman** | Bayesian blending of CAPM equilibrium returns with investor views |
+| **Factor Risk Model** | FF3-style factor loadings, factor covariance, systematic/idio decomposition |
+| **Live Data** | Fetch prices via `yfinance`; FF3 factors via `pandas-datareader` |
 | **Ledoit-Wolf Shrinkage** | Well-conditioned covariance estimation for small-sample regimes |
 | **Portfolio Constraints** | Per-asset weight bounds, sector exposure caps |
 | **Transaction Cost Modeling** | Commission, bid-ask spread, minimum trade thresholds |
@@ -38,9 +42,11 @@ This project implements the core quantitative portfolio management techniques us
 
 ```
 portfolio_optimiser/
-├── __init__.py          # Package exports (v2.0.0)
-├── data_loader.py       # Price data loading, returns, covariance (incl. Ledoit-Wolf)
-├── optimizer.py         # 5 strategies + Black-Litterman + Max Diversification
+├── __init__.py          # Package exports (v3.0.0)
+├── data_loader.py       # Price data, Ledoit-Wolf covariance, yfinance, FF3 factors
+├── optimizer.py         # 5 MVO strategies + Black-Litterman + Max Diversification
+├── hrp.py               # Hierarchical Risk Parity (López de Prado 2016)
+├── factor_model.py      # FF3-style factor risk model
 ├── constraints.py       # Weight and sector constraints
 ├── costs.py             # Transaction cost modeling
 ├── backtester.py        # Walk-forward engine + full metrics + rolling Sharpe plot
@@ -168,6 +174,7 @@ cov = calculate_covariance_shrunk(daily_returns)
 | **Equal Weight** | w_i = 1/N | Naïve benchmark |
 | **Risk Parity** | Equalize RC_i | Balanced risk exposure |
 | **Max Diversification** | Maximize Σ(w·σ) / σ_p | Maximum DR benefit |
+| **HRP** | Cluster then bisect | No matrix inversion |
 
 ### 3. Black-Litterman Model
 Blends CAPM-implied equilibrium returns with investor views using Bayes' theorem. Supports both absolute views (asset return forecast) and relative views (asset A outperforms asset B).
@@ -196,7 +203,46 @@ weights = max_sharpe_ratio(mu_bl, cov)
 | **Alpha** | R_p − (r_f + β(R_b − r_f)) |
 | **Information Ratio** | Active return / Tracking error |
 
-### 5. CVaR / Expected Shortfall
+### 5. Hierarchical Risk Parity (HRP)
+
+No matrix inversion — avoids ill-conditioning entirely. Groups correlated assets by clustering, then allocates inversely to cluster variance via recursive bisection.
+
+```python
+from portfolio_optimiser import hrp_weights, plot_hrp_dendrogram
+
+w = hrp_weights(cov_matrix, corr_matrix)
+plot_hrp_dendrogram(cov_matrix, asset_names)
+```
+
+### 6. Factor Risk Model (FF3-style)
+
+Decomposes portfolio risk into **systematic** (factor-driven) and **idiosyncratic** components. The factor-based covariance matrix `Σ_f = B·F·Bᵀ + D` can replace sample or Ledoit-Wolf covariance in any optimizer.
+
+```python
+from portfolio_optimiser import (
+    fetch_ff3_factors, estimate_factor_model,
+    systematic_vs_idiosyncratic, plot_factor_loadings,
+)
+
+factors = fetch_ff3_factors(start="2022-01-01")          # Mkt-RF, SMB, HML
+fm = estimate_factor_model(asset_returns, factors)
+decomp = systematic_vs_idiosyncratic(weights, fm)
+# decomp["pct_systematic"]    → e.g. 93.4%
+# decomp["pct_idiosyncratic"] → e.g.  6.6%
+
+# Use factor covariance in optimizer
+w = max_sharpe_ratio(mu, fm.factor_cov_matrix)
+```
+
+### 7. Live Data via yfinance
+
+```python
+from portfolio_optimiser import fetch_prices
+
+prices = fetch_prices(["AAPL", "MSFT", "GOOGL"], start="2022-01-01")
+```
+
+### 8. CVaR / Expected Shortfall
 More sensitive to tail risk than VaR; required under Basel III for institutional risk reporting.
 
 ```python
@@ -329,7 +375,7 @@ CVaR_α = -E[R | R ≤ VaR_α]   annualised as daily_CVaR × √252
 | **Quantitative Finance** | MPT, Mean-Variance Optimization, Black-Litterman, Risk Parity, CVaR |
 | **Mathematical Optimization** | Constrained Optimization, SLSQP, Convex Optimization |
 | **Statistics** | Covariance Shrinkage, Tail-Risk Estimation, Performance Attribution |
-| **Python** | NumPy, Pandas, SciPy, Matplotlib, scikit-learn |
+| **Python** | NumPy, Pandas, SciPy, Matplotlib, scikit-learn, yfinance, pandas-datareader |
 
 ---
 
