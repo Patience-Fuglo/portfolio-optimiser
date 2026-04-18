@@ -7,12 +7,13 @@ with constraints, transaction costs, backtesting, and risk attribution.
 
 Modules
 -------
-- data_loader: Price data loading, returns calculation, covariance estimation
-- optimizer: Portfolio optimization strategies (Max Sharpe, Min Variance, Risk Parity)
+- data_loader: Price data loading, returns calculation, covariance estimation (incl. Ledoit-Wolf shrinkage)
+- optimizer: Portfolio optimization strategies (Max Sharpe, Min Variance, Risk Parity,
+             Max Diversification, Black-Litterman)
 - constraints: Position limits and sector exposure constraints
 - costs: Transaction cost modeling
-- backtester: Walk-forward backtesting engine
-- report: Risk attribution and visualization
+- backtester: Walk-forward backtesting engine with Sharpe/Sortino/Calmar/CVaR/Alpha/Beta
+- report: Risk attribution, CVaR analysis, and visualization
 
 Example
 -------
@@ -22,7 +23,7 @@ Example
 >>> weights = max_sharpe_ratio(returns.mean().values * 252, returns.cov().values * 252)
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __author__ = "Patience Fuglo"
 
 # Data loading utilities
@@ -31,6 +32,7 @@ from portfolio_optimiser.data_loader import (
     calculate_returns,
     annualize_returns,
     calculate_covariance,
+    calculate_covariance_shrunk,
     calculate_correlation,
     calculate_annual_volatility,
 )
@@ -44,6 +46,8 @@ from portfolio_optimiser.optimizer import (
     min_variance,
     equal_weight,
     risk_parity,
+    maximum_diversification,
+    black_litterman,
     maximize_sharpe,
     compare_strategies,
 )
@@ -62,6 +66,7 @@ from portfolio_optimiser.report import (
     risk_contribution,
     pct_risk_contribution,
     diversification_ratio,
+    cvar,
     print_portfolio_summary,
     plot_risk_pie,
     plot_correlation_heatmap,
@@ -76,6 +81,7 @@ __all__ = [
     "calculate_returns",
     "annualize_returns",
     "calculate_covariance",
+    "calculate_covariance_shrunk",
     "calculate_correlation",
     "calculate_annual_volatility",
     # Optimizer
@@ -86,6 +92,8 @@ __all__ = [
     "min_variance",
     "equal_weight",
     "risk_parity",
+    "maximum_diversification",
+    "black_litterman",
     "maximize_sharpe",
     "compare_strategies",
     # Constraints
@@ -98,6 +106,7 @@ __all__ = [
     "risk_contribution",
     "pct_risk_contribution",
     "diversification_ratio",
+    "cvar",
     "print_portfolio_summary",
     "plot_risk_pie",
     "plot_correlation_heatmap",

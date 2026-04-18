@@ -54,8 +54,10 @@ class TransactionCostModel:
             trade_value: Absolute dollar value of the trade.
 
         Returns:
-            Transaction cost in dollars (always positive).
+            Transaction cost in dollars (always positive), or 0 if no trade.
         """
+        if abs(trade_value) < 1e-8:
+            return 0.0
         variable_cost = abs(trade_value) * (self.commission_rate + self.spread_cost)
         return max(variable_cost, self.min_commission)
 

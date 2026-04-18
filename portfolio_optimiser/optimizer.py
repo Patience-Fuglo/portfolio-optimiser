@@ -191,6 +191,9 @@ def max_sharpe_ratio(
 
     Returns:
         Optimal portfolio weights.
+
+    Raises:
+        RuntimeError: If optimization does not converge.
     """
     n_assets = len(expected_returns)
     initial_weights = np.array([1 / n_assets] * n_assets)
@@ -207,6 +210,9 @@ def max_sharpe_ratio(
         constraints=constraints,
     )
 
+    if not result.success:
+        raise RuntimeError(f"Max Sharpe optimization failed: {result.message}")
+
     return result.x
 
 
@@ -220,6 +226,9 @@ def min_variance(expected_returns: Returns, cov_matrix: CovMatrix) -> Weights:
 
     Returns:
         Optimal portfolio weights.
+
+    Raises:
+        RuntimeError: If optimization does not converge.
     """
     n_assets = len(expected_returns)
     initial_weights = np.array([1 / n_assets] * n_assets)
@@ -235,6 +244,9 @@ def min_variance(expected_returns: Returns, cov_matrix: CovMatrix) -> Weights:
         bounds=bounds,
         constraints=constraints,
     )
+
+    if not result.success:
+        raise RuntimeError(f"Min Variance optimization failed: {result.message}")
 
     return result.x
 
@@ -305,6 +317,9 @@ def risk_parity(cov_matrix: CovMatrix) -> Weights:
 
     Returns:
         Risk parity portfolio weights.
+
+    Raises:
+        RuntimeError: If optimization does not converge.
     """
     n_assets = cov_matrix.shape[0]
     initial_weights = np.array([1 / n_assets] * n_assets)
@@ -319,7 +334,11 @@ def risk_parity(cov_matrix: CovMatrix) -> Weights:
         method="SLSQP",
         bounds=bounds,
         constraints=constraints,
+        options={"ftol": 1e-12, "maxiter": 1000},
     )
+
+    if not result.success:
+        raise RuntimeError(f"Risk Parity optimization failed: {result.message}")
 
     return result.x
 
@@ -428,6 +447,107 @@ def plot_frontier_with_strategies(
     plt.show()
 
 
+def maximum_diversification(cov_matrix: CovMatrix) -> Weights:
+    """
+    Maximum Diversification Portfolio (Choteau 2008).
+
+    Maximizes the diversification ratio DR = (w'σ) / σ_p, where σ is the
+    vector of individual asset volatilities and σ_p is portfolio volatility.
+    A higher DR means diversification is doing more work.
+
+    Args:
+        cov_matrix: Annualized covariance matrix.
+
+    Returns:
+        Weights that maximise the diversification ratio.
+
+    Raises:
+        RuntimeError: If optimization does not converge.
+    """
+    n_assets = cov_matrix.shape[0]
+    individual_vols = np.sqrt(np.diag(cov_matrix))
+
+    def neg_dr(w: Weights) -> float:
+        port_vol = portfolio_volatility(w, cov_matrix)
+        if port_vol < 1e-10:
+            return 0.0
+        return -float(np.dot(w, individual_vols) / port_vol)
+
+    initial_weights = np.ones(n_assets) / n_assets
+    bounds = tuple((0.0, 1.0) for _ in range(n_assets))
+    constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
+
+    result = minimize(
+        neg_dr,
+        initial_weights,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=constraints,
+        options={"ftol": 1e-12, "maxiter": 1000},
+    )
+
+    if not result.success:
+        raise RuntimeError(f"Maximum Diversification optimization failed: {result.message}")
+
+    return result.x
+
+
+def black_litterman(
+    cov_matrix: CovMatrix,
+    market_weights: Weights,
+    view_picks: npt.NDArray[np.float64],
+    view_returns: npt.NDArray[np.float64],
+    tau: float = 0.025,
+    risk_aversion: float = 2.5,
+) -> Returns:
+    """
+    Black-Litterman posterior expected returns.
+
+    Blends CAPM equilibrium returns with investor views using Bayes' theorem.
+    Equilibrium returns are implied by market-cap weights; views override
+    specific assets or spreads.
+
+    Args:
+        cov_matrix: Annualized covariance matrix (n × n).
+        market_weights: Reference weights encoding equilibrium (e.g. market-cap
+            weights or equal weights).  Shape (n,).
+        view_picks: Pick matrix P (k × n).  Each row encodes one view:
+            - Absolute view on asset i: row = e_i (standard basis vector).
+            - Relative view (asset i outperforms j): row = e_i - e_j.
+        view_returns: Q vector (k,) — the expected return for each view.
+        tau: Uncertainty scalar for the equilibrium prior (typically 0.025).
+        risk_aversion: Market risk-aversion coefficient δ (typically 2.5).
+
+    Returns:
+        Posterior expected returns (n,) that blend equilibrium with views.
+
+    Example:
+        >>> # Equal market weights for 3 assets; bullish on asset 0 (20% p.a.)
+        >>> P = np.array([[1, 0, 0]])
+        >>> Q = np.array([0.20])
+        >>> mu_bl = black_litterman(cov, mkt_weights, P, Q)
+    """
+    P = np.atleast_2d(np.asarray(view_picks, dtype=float))
+    Q = np.asarray(view_returns, dtype=float)
+
+    # Implied equilibrium returns: π = δ × Σ × w_market
+    pi = risk_aversion * cov_matrix @ market_weights
+
+    if P.size == 0:
+        return pi
+
+    # View uncertainty Ω = τ × P × Σ × P'  (Meucci proportional uncertainty)
+    Omega = tau * P @ cov_matrix @ P.T
+
+    # Posterior: μ_BL = [(τΣ)⁻¹ + P'Ω⁻¹P]⁻¹ [(τΣ)⁻¹π + P'Ω⁻¹Q]
+    tau_sigma_inv = np.linalg.inv(tau * cov_matrix)
+    omega_inv = np.linalg.inv(Omega)
+    M = tau_sigma_inv + P.T @ omega_inv @ P
+    posterior = np.linalg.solve(M, tau_sigma_inv @ pi + P.T @ omega_inv @ Q)
+
+    return posterior
+
+
 def compare_strategies(expected_returns, cov_matrix, stock_names, risk_free_rate=0.02):
     n_assets = len(expected_returns)
 
@@ -436,6 +556,7 @@ def compare_strategies(expected_returns, cov_matrix, stock_names, risk_free_rate
         "Min Variance": min_variance(expected_returns, cov_matrix),
         "Equal Weight": equal_weight(n_assets),
         "Risk Parity": risk_parity(cov_matrix),
+        "Max Diversification": maximum_diversification(cov_matrix),
     }
 
     print("\n=== STRATEGY COMPARISON ===\n")

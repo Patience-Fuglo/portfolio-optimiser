@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from sklearn.covariance import LedoitWolf
 
 
 TRADING_DAYS: int = 252
@@ -75,6 +76,31 @@ def calculate_covariance(daily_returns: pd.DataFrame) -> pd.DataFrame:
         Annualized covariance matrix as DataFrame.
     """
     return daily_returns.cov() * TRADING_DAYS
+
+
+def calculate_covariance_shrunk(daily_returns: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculate annualized covariance matrix using Ledoit-Wolf shrinkage.
+
+    The sample covariance matrix is ill-conditioned when the number of assets
+    is large relative to the history.  Ledoit-Wolf analytically computes the
+    optimal shrinkage intensity toward a structured target, producing a
+    well-conditioned estimate that reduces estimation error.
+
+    Args:
+        daily_returns: DataFrame of daily returns.
+
+    Returns:
+        Annualized shrunk covariance matrix as DataFrame.
+    """
+    lw = LedoitWolf()
+    lw.fit(daily_returns.values)
+    cov_daily = pd.DataFrame(
+        lw.covariance_,
+        index=daily_returns.columns,
+        columns=daily_returns.columns,
+    )
+    return cov_daily * TRADING_DAYS
 
 
 def calculate_correlation(daily_returns: pd.DataFrame) -> pd.DataFrame:

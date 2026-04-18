@@ -1,50 +1,146 @@
+"""
+Report Module
+=============
+
+Risk attribution, tail-risk analysis, and portfolio visualization.
+
+Functions
+---------
+- risk_contribution       : Marginal risk contribution per asset
+- pct_risk_contribution   : Risk contributions as % of portfolio volatility
+- diversification_ratio   : DR = weighted-avg vol / portfolio vol
+- cvar                    : Conditional Value at Risk (Expected Shortfall)
+- print_portfolio_summary : Full risk table including CVaR
+- plot_risk_pie           : Pie chart of % risk contributions
+- plot_correlation_heatmap: Annotated correlation heatmap
+"""
+
+from __future__ import annotations
+
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
 
+from portfolio_optimiser.data_loader import TRADING_DAYS
 from portfolio_optimiser.optimizer import portfolio_volatility, portfolio_return
 
 
-def risk_contribution(weights, cov_matrix):
+def risk_contribution(
+    weights: npt.NDArray[np.float64],
+    cov_matrix: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
     """
-    Risk contribution of each asset:
-    RC_i = w_i * (cov_matrix @ weights)[i] / portfolio_vol
+    Marginal risk contribution of each asset.
+
+    RC_i = w_i * (Σ w)_i / σ_p
+
+    Args:
+        weights: Portfolio weights (n,).
+        cov_matrix: Annualized covariance matrix (n × n).
+
+    Returns:
+        Array of risk contributions; sums to portfolio volatility.
     """
     portfolio_vol = portfolio_volatility(weights, cov_matrix)
 
-    if portfolio_vol == 0:
+    if portfolio_vol < 1e-10:
         return np.zeros(len(weights))
 
     marginal_contrib = np.dot(cov_matrix, weights)
-    rc = weights * marginal_contrib / portfolio_vol
-    return rc
+    return weights * marginal_contrib / portfolio_vol
 
 
-def pct_risk_contribution(risk_contributions, portfolio_vol):
+def pct_risk_contribution(
+    risk_contributions: npt.NDArray[np.float64],
+    portfolio_vol: float,
+) -> npt.NDArray[np.float64]:
     """
     Convert risk contributions into percentage of total portfolio risk.
-    They should sum to about 100%.
+
+    Args:
+        risk_contributions: Array from risk_contribution().
+        portfolio_vol: Portfolio volatility scalar.
+
+    Returns:
+        Array of percentage contributions; sums to ~100%.
     """
-    if portfolio_vol == 0:
+    if portfolio_vol < 1e-10:
         return np.zeros(len(risk_contributions))
 
     return (risk_contributions / portfolio_vol) * 100
 
 
-def diversification_ratio(weights, individual_vols, portfolio_vol):
+def diversification_ratio(
+    weights: npt.NDArray[np.float64],
+    individual_vols: npt.NDArray[np.float64],
+    portfolio_vol: float,
+) -> float:
     """
-    Diversification Ratio = sum(weight_i * vol_i) / portfolio_vol
-    Ratio > 1 means diversification benefit exists.
+    Diversification Ratio = Σ(w_i * σ_i) / σ_p.
+
+    DR > 1 indicates diversification is reducing portfolio risk.
+
+    Args:
+        weights: Portfolio weights.
+        individual_vols: Individual asset volatilities (sqrt of diag(Σ)).
+        portfolio_vol: Portfolio volatility.
+
+    Returns:
+        Diversification ratio (scalar).
     """
-    if portfolio_vol == 0:
-        return 0
+    if portfolio_vol < 1e-10:
+        return 0.0
 
-    return np.sum(weights * individual_vols) / portfolio_vol
+    return float(np.sum(weights * individual_vols) / portfolio_vol)
 
 
-def print_portfolio_summary(weights, expected_returns, cov_matrix, asset_names):
+def cvar(
+    daily_returns: npt.NDArray[np.float64],
+    confidence: float = 0.95,
+) -> tuple[float, float]:
     """
-    Print portfolio summary table:
-    Asset, Weight, Expected Return, Volatility, Risk Contribution %
+    Conditional Value at Risk (Expected Shortfall).
+
+    CVaR at α% is the expected loss on the worst (1-α)% of days.
+    More sensitive to tail risk than VaR; required under Basel III.
+
+    Args:
+        daily_returns: Array of daily portfolio returns.
+        confidence: Confidence level (default 0.95 = 95%).
+
+    Returns:
+        Tuple of (daily_cvar, annualized_cvar) expressed as positive loss values.
+    """
+    sorted_r = np.sort(daily_returns)
+    cutoff = max(1, int(len(sorted_r) * (1.0 - confidence)))
+    tail = sorted_r[:cutoff]
+    daily_es = float(-np.mean(tail))
+    annualized_es = daily_es * np.sqrt(TRADING_DAYS)
+    return daily_es, annualized_es
+
+
+def print_portfolio_summary(
+    weights: npt.NDArray[np.float64],
+    expected_returns: npt.NDArray[np.float64],
+    cov_matrix: npt.NDArray[np.float64],
+    asset_names: list[str],
+    daily_returns: npt.NDArray[np.float64] | None = None,
+) -> dict:
+    """
+    Print a full portfolio risk report and return key metrics.
+
+    Args:
+        weights: Portfolio weights.
+        expected_returns: Annualized expected returns per asset.
+        cov_matrix: Annualized covariance matrix.
+        asset_names: Asset ticker labels.
+        daily_returns: Optional array of historical daily portfolio returns
+            used to compute CVaR.  If None, CVaR is omitted.
+
+    Returns:
+        Dict with portfolio_return, portfolio_volatility, risk_contributions,
+        pct_risk_contributions, individual_vols, diversification_ratio,
+        and (if daily_returns provided) daily_cvar and annualized_cvar.
     """
     portfolio_vol = portfolio_volatility(weights, cov_matrix)
     portfolio_ret = portfolio_return(weights, expected_returns)
@@ -77,7 +173,7 @@ def print_portfolio_summary(weights, expected_returns, cov_matrix, asset_names):
     )
     print(f"\nDiversification Ratio: {div_ratio:.4f}")
 
-    return {
+    result: dict = {
         "portfolio_return": portfolio_ret,
         "portfolio_volatility": portfolio_vol,
         "risk_contributions": rc,
@@ -86,10 +182,25 @@ def print_portfolio_summary(weights, expected_returns, cov_matrix, asset_names):
         "diversification_ratio": div_ratio,
     }
 
+    if daily_returns is not None:
+        daily_cvar, ann_cvar = cvar(np.asarray(daily_returns))
+        print(f"CVaR (95%, annualised):  {ann_cvar:.4f}  ({ann_cvar * 100:.2f}%)")
+        result["daily_cvar"] = daily_cvar
+        result["annualized_cvar"] = ann_cvar
 
-def plot_risk_pie(asset_names, pct_contributions):
+    return result
+
+
+def plot_risk_pie(
+    asset_names: list[str],
+    pct_contributions: npt.NDArray[np.float64],
+) -> None:
     """
     Pie chart of percentage risk contributions.
+
+    Args:
+        asset_names: Asset ticker labels.
+        pct_contributions: Array of % risk contributions from pct_risk_contribution().
     """
     plt.figure(figsize=(8, 8))
     plt.pie(
@@ -104,9 +215,16 @@ def plot_risk_pie(asset_names, pct_contributions):
     plt.show()
 
 
-def plot_correlation_heatmap(correlation_matrix, asset_names):
+def plot_correlation_heatmap(
+    correlation_matrix: npt.NDArray[np.float64],
+    asset_names: list[str],
+) -> None:
     """
-    Correlation heatmap using matplotlib imshow.
+    Annotated correlation heatmap using matplotlib imshow.
+
+    Args:
+        correlation_matrix: Correlation matrix as a 2-D numpy array.
+        asset_names: Asset ticker labels.
     """
     plt.figure(figsize=(8, 6))
     im = plt.imshow(correlation_matrix, cmap="coolwarm", vmin=-1, vmax=1)
